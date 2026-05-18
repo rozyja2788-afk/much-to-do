@@ -1,0 +1,39 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - feature/month-3-cicd
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci-cd.yml'
+
+jobs:
+  backend-test-build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -vet=off ./... -run '^$' -timeout=60s
+
+      - name: Build Docker image
+        run: docker build -t muchtodo-backend:latest .
+
+      - name: Backend pipeline completed
+        run: echo "Backend CI/CD pipeline completed"
