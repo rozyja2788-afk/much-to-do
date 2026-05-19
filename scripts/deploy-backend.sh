@@ -1,12 +1,15 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-: "${ASG_NAME:?ASG_NAME is required}"
+if [ -z "$ASG_NAME" ]; then
+  echo "ASG_NAME is missing"
+  exit 1
+fi
 
-echo "Starting backend rolling update for Auto Scaling Group: $ASG_NAME"
+echo "Starting rolling deployment for $ASG_NAME"
 
 aws autoscaling start-instance-refresh \
   --auto-scaling-group-name "$ASG_NAME" \
-  --preferences '{"MinHealthyPercentage": 50, "InstanceWarmup": 120}'
+  --preferences MinHealthyPercentage=50,InstanceWarmup=120
 
-echo "Backend rolling deployment started."
+echo "Instance refresh started"

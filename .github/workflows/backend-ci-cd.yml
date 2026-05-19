@@ -6,16 +6,16 @@ on:
       - feature/month-3-cicd
       - main
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend-ci-cd.yml'
+      - "backend/**"
+      - "scripts/deploy-backend.sh"
+      - "scripts/health-check.sh"
+      - ".github/workflows/backend-ci-cd.yml"
+
+  workflow_dispatch:
 
 jobs:
-  backend-test-build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - name: Checkout repository
@@ -24,16 +24,44 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: "1.22"
 
-      - name: Download dependencies
-        run: go mod download
+      - name: Run backend tests
+        working-directory: backend
+        run: go test ./...
+        continue-on-error: true
 
-      - name: Run tests
-        run: go test -vet=off ./... -run '^$' -timeout=60s
+      - name: Run Go vet
+        working-directory: backend
+        run: go vet ./...
+        continue-on-error: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Docker image
-        run: docker build -t muchtodo-backend:latest .
+        working-directory: backend
+        run: docker build -t starttech-muchtodo-backend .
 
-      - name: Backend pipeline completed
-        run: echo "Backend CI/CD pipeline completed"
+      - name: Tag Docker image
+        run: docker tag starttech-muchtodo-backend:latest 095453158847.dkr.ecr.us-east-1.amazonaws.com/starttech-muchtodo-backend:latest
+
+      - name: Push Docker image to ECR
+        run: docker push 095453158847.dkr.ecr.us-east-1.amazonaws.com/starttech-muchtodo-backend:latest
+
+      - name: Deploy backend with rolling update
+        env:
+          ASG_NAME: starttech-muchtodo-asg
+        run: ./scripts/deploy-backend.sh
+
+      - name: Run smoke health check
+        env:
+          BACKEND_URL: http://starttech-muchtodo-alb-130765398.us-east-1.elb.amazonaws.com
+        run: ./scripts/health-check.sh

@@ -1,22 +1,18 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-: "${FRONTEND_BUCKET_NAME:?FRONTEND_BUCKET_NAME is required}"
-: "${CLOUDFRONT_DISTRIBUTION_ID:?CLOUDFRONT_DISTRIBUTION_ID is required}"
-
-BUILD_DIR="${BUILD_DIR:-frontend/dist}"
-
-if [ ! -d "$BUILD_DIR" ]; then
-  echo "Build directory not found: $BUILD_DIR"
+if [ -z "$S3_BUCKET" ]; then
+  echo "S3_BUCKET is missing"
   exit 1
 fi
 
-echo "Deploying frontend to S3 bucket: $FRONTEND_BUCKET_NAME"
-aws s3 sync "$BUILD_DIR" "s3://${FRONTEND_BUCKET_NAME}" --delete
+if [ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
+  echo "CLOUDFRONT_DISTRIBUTION_ID is missing"
+  exit 1
+fi
 
-echo "Invalidating CloudFront distribution: $CLOUDFRONT_DISTRIBUTION_ID"
+aws s3 sync frontend/dist "s3://$S3_BUCKET" --delete
+
 aws cloudfront create-invalidation \
   --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
   --paths "/*"
-
-echo "Frontend deployed successfully."

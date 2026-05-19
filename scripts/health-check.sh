@@ -1,23 +1,13 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-: "${BACKEND_URL:?BACKEND_URL is required}"
+if [ -z "$BACKEND_URL" ]; then
+  echo "BACKEND_URL is missing"
+  exit 1
+fi
 
-echo "Checking backend health at ${BACKEND_URL}/health"
+echo "Checking backend health at $BACKEND_URL/health"
 
-for i in {1..20}; do
-  STATUS_CODE=$(curl -s -o /tmp/health-response.txt -w "%{http_code}" "${BACKEND_URL}/health" || true)
+curl -f "$BACKEND_URL/health"
 
-  if [ "$STATUS_CODE" = "200" ]; then
-    echo "Backend is healthy."
-    cat /tmp/health-response.txt
-    exit 0
-  fi
-
-  echo "Attempt $i failed with status code: $STATUS_CODE"
-  sleep 10
-done
-
-echo "Backend health check failed."
-cat /tmp/health-response.txt || true
-exit 1
+echo "Backend health check passed"

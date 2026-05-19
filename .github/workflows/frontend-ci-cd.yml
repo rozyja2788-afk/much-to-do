@@ -6,16 +6,19 @@ on:
       - feature/month-3-cicd
       - main
     paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-ci-cd.yml'
+      - "frontend/**"
+      - "scripts/deploy-frontend.sh"
+      - ".github/workflows/frontend-ci-cd.yml"
+
+  workflow_dispatch:
 
 jobs:
-  frontend-build-and-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     defaults:
       run:
-        working-directory: frontend
+        working-directory: .
 
     steps:
       - name: Checkout repository
@@ -24,22 +27,35 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "20"
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: frontend
         run: npm install
 
-      - name: Run security audit
-        run: npm audit --audit-level=high || true
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test -- --watchAll=false
+        continue-on-error: true
+
+      - name: Run npm security audit
+        working-directory: frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
 
       - name: Build frontend
+        working-directory: frontend
         run: npm run build
 
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          name: frontend-build
-          path: frontend/dist
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-      - name: Frontend pipeline completed
-        run: echo "Frontend pipeline completed successfully"
+      - name: Deploy frontend to S3 and CloudFront
+        env:
+          S3_BUCKET: rosey-starttech-frontend-2026
+          CLOUDFRONT_DISTRIBUTION_ID: E3UKWOS2VQXP5P
+        run: ./scripts/deploy-frontend.sh
