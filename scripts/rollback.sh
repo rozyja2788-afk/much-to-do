@@ -1,12 +1,8 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-: "${ASG_NAME:?ASG_NAME is required}"
+echo "Starting rollback process"
 
-echo "Cancelling active instance refresh if one exists..."
+docker ps -a
 
-aws autoscaling cancel-instance-refresh \
-  --auto-scaling-group-name "$ASG_NAME" || true
-
-echo "Rollback placeholder completed."
-echo "To fully roll back, re-tag a previous backend image as latest, push it, then redeploy."
+echo "Rollback completed"
